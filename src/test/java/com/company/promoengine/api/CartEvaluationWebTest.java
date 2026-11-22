@@ -135,6 +135,42 @@ class CartEvaluationWebTest {
                 .andExpect(jsonPath("$.instance").value("/api/v1/cart/evaluate"));
     }
 
+    @Test
+    void rejectsUnknownRuleType() throws Exception {
+        var request = """
+                {
+                  "cart": {
+                    "cartId": "cart-unknown-type",
+                    "currency": "INR",
+                    "evaluationTimestamp": "2026-03-15T10:00:00Z",
+                    "userTier": "STANDARD",
+                    "items": [
+                      {"sku": "SKU-A", "category": "BOOKS", "unitPrice": 100.00, "quantity": 1}
+                    ]
+                  },
+                  "promotions": [
+                    {
+                      "id": "PROMO_SHIP",
+                      "name": "Free shipping",
+                      "type": "FREE_SHIPPING",
+                      "priority": 1,
+                      "validFrom": "2026-01-01T00:00:00Z",
+                      "validTo": "2026-12-31T23:59:59Z",
+                      "conditions": {},
+                      "discountConfig": {"percentage": 10}
+                    }
+                  ]
+                }
+                """;
+        // An unknown enum value fails deserialization, which the README maps to "Malformed request body".
+        mockMvc.perform(post("/api/v1/cart/evaluate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Malformed request body"));
+    }
+
     private void assertEvaluation(String request, String expected) throws Exception {
         var result = mockMvc.perform(post("/api/v1/cart/evaluate")
                         .contentType(MediaType.APPLICATION_JSON)
